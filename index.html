@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safely Managed Drinking Water (Most Recent Year)</title>
+  <meta name="description" content="Choropleth map showing the most recent share of population with safely managed drinking water services." />
+  <style>
+    body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background:#f8f9fb;
+    color:#111;
+    display: flex;              
+    flex-direction: column;     
+    align-items: center;        
+    }
+
+    header, footer, #vis {
+    width: 100%;
+    max-width: 980px;           
+    text-align: center;
+    }
+
+    h1 { margin: 0 0 6px; font-size: 1.4rem; }
+
+    p.sub { margin: 0 auto; max-width: 900px; color:#555; font-size: .95rem; }
+
+    #vis {
+    background: #fff;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.06);
+    margin: 18px 0 8px;         
+    }
+
+    footer { max-width: 980px; margin: 6px auto 40px; color:#666; font-size:.85rem; padding: 0 12px; text-align: center;}
+    
+    .note { color:#b00; }
+    
+    .sr { position:absolute; left:-9999px; }
+  </style>
+
+  <!-- Vega libs from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+</head>
+<body>
+  <header>
+    <h1>Safely Managed Drinking Water (Most Recent Year)</h1>
+    <p class="meta">
+    Name: Phat Gia Tran<br>
+    Monash student ID: 32933983<br>
+    Lab: Wednesday 6 PM<br>
+    Tutor name: Ashwini
+    </p>
+    <p class="sub">Each country is coloured by the latest available percentage of the population with <em>safely managed</em> drinking water services. Hover for details.</p>
+  </header>
+
+  <main id="vis" aria-labelledby="map-title">
+    <span id="map-title" class="sr">Choropleth map of safely managed water services</span>
+  </main>
+
+  <footer>
+    <div><strong>Data:</strong> WHO/UNICEF JMP (latest available year per country). Geometry: Natural Earth 1:110m.</div>
+    <div><strong>Notes:</strong> Some countries that are blanked out meaning there is no data available for that country.</div>
+  </footer>
+
+  <script>
+  // TopoJSON object name inside your file's "objects" section
+  const FEATURE_NAME = "ne_110m_admin_0_countries"; 
+
+  // Build the Vega-Lite spec
+  const spec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "width": 980,
+  "height": 520,
+  "autosize": {"type": "fit", "contains": "padding"},
+  "config": {
+    "view": {"stroke": null},
+    "axis": {"labelFontSize": 11, "titleFontSize": 12},
+    "legend": {"labelFontSize": 11, "titleFontSize": 12}
+  },
+  "title": {
+    "text": "Safely Managed Drinking Water",
+    "subtitle": "% of population with safely managed drinking water (latest available year)",
+    "anchor": "start",
+    "fontSize": 20,
+    "subtitleFontSize": 13
+  },
+  "projection": {"type": "equalEarth"},
+  "layer": [
+    /* Ocean */
+    { "data": {"sphere": true}, "mark": {"type": "geoshape", "fill": "#eef4fa"} },
+
+    /* Graticule */
+    { "data": {"graticule": {"step": [30, 30]}},
+      "mark": {"type": "geoshape", "stroke": "#c8d1db", "strokeWidth": 0.7}
+    },
+
+    /* ---- No-data layer (light grey) ---- */
+    {
+      "data": {"url": "data/ne_110m_admin_0_countries.json",
+               "format": {"type": "topojson", "feature": FEATURE_NAME}},
+      "transform": [
+        {
+          "calculate":
+            "datum.properties.ISO_A3 ? datum.properties.ISO_A3 : " +
+            "(datum.properties.ISO_A3_EH ? datum.properties.ISO_A3_EH : datum.properties.ADM0_A3)",
+          "as": "ISO3_guess"
+        },
+        { "calculate": "datum.ISO3_guess == 'KOS' ? 'XKX' : datum.ISO3_guess", "as": "ISO3_for_join" },
+        {
+          "lookup": "ISO3_for_join",
+          "from": {
+            "data": {"url": "data/clean_water_latest.csv"},
+            "key": "iso3",
+            "fields": ["access_percentage", "latest_year", "country"]
+          }
+        },
+        /* compute display fields and filter to rows with NO data */
+        { "calculate": "datum.country ? datum.country : (datum.properties.NAME_EN ? datum.properties.NAME_EN : datum.properties.NAME)", "as": "country_display" },
+        { "calculate": "isValid(datum.latest_year) ? toString(datum.latest_year) : '—'", "as": "year_display" },
+        { "calculate": "isValid(datum.access_percentage) ? format(datum.access_percentage, '.1f') + '%' : 'No data'", "as": "access_display" },
+        { "filter": "!isValid(datum.access_percentage)" }
+      ],
+      "mark": {"type": "geoshape", "fill": "#e9edf2", "stroke": "#ffffff", "strokeWidth": 0.5},
+      "encoding": {
+        "tooltip": [
+          {"field": "country_display", "type": "nominal", "title": "Country"},
+          {"field": "access_display", "type": "nominal", "title": "% Access"},
+          {"field": "year_display", "type": "nominal", "title": "Latest Year"}
+        ]
+      }
+    },
+
+    /* ---- Data layer (coloured by value) ---- */
+    {
+      "data": {"url": "data/ne_110m_admin_0_countries.json",
+               "format": {"type": "topojson", "feature": FEATURE_NAME}},
+      "transform": [
+        {
+          "calculate":
+            "datum.properties.ISO_A3 ? datum.properties.ISO_A3 : " +
+            "(datum.properties.ISO_A3_EH ? datum.properties.ISO_A3_EH : datum.properties.ADM0_A3)",
+          "as": "ISO3_guess"
+        },
+        { "calculate": "datum.ISO3_guess == 'KOS' ? 'XKX' : datum.ISO3_guess", "as": "ISO3_for_join" },
+        {
+          "lookup": "ISO3_for_join",
+          "from": {
+            "data": {"url": "data/clean_water_latest.csv"},
+            "key": "iso3",
+            "fields": ["access_percentage", "latest_year", "country"]
+          }
+        },
+        /* compute display fields */
+        { "calculate": "datum.country ? datum.country : (datum.properties.NAME_EN ? datum.properties.NAME_EN : datum.properties.NAME)", "as": "country_display" },
+        { "calculate": "isValid(datum.latest_year) ? toString(datum.latest_year) : '—'", "as": "year_display" },
+        { "calculate": "isValid(datum.access_percentage) ? format(datum.access_percentage, '.1f') + '%' : 'No data'", "as": "access_display" },
+        /* keep only rows WITH data for the colour layer */
+        { "filter": "isValid(datum.access_percentage)" }
+      ],
+      "mark": {"type": "geoshape", "stroke": "#ffffff", "strokeWidth": 0.5},
+      "encoding": {
+        "color": {
+          "field": "access_percentage",
+          "type": "quantitative",
+          "title": "% with Safely Managed Water",
+          "scale": {"scheme": "blues", "domain": [0, 100], "clamp": true},
+          "legend": {"format": ".0f", "orient": "right"}
+        },
+        "tooltip": [
+          {"field": "country_display", "type": "nominal", "title": "Country"},
+          {"field": "access_display", "type": "nominal", "title": "% Access"},
+          {"field": "year_display", "type": "nominal", "title": "Latest Year"}
+        ]
+      }
+    },
+
+    /* hairline borders on top */
+    {
+      "data": {"url": "data/ne_110m_admin_0_countries.json",
+               "format": {"type": "topojson", "feature": FEATURE_NAME}},
+      "mark": {"type": "geoshape", "fill": null, "stroke": "#b9c3cf", "strokeWidth": 0.6}
+    }
+  ]
+};
+
+
+  // Render it
+  vegaEmbed('#vis', spec, {actions: false})
+    .then(() => console.log('Map rendered'))
+    .catch(err => {
+      console.error(err);
+      document.getElementById('vis').insertAdjacentHTML(
+        'beforeend',
+        '<p class="note">Could not render the map. Open the browser Console for details (feature name mismatch or 404 paths are common).</p>'
+      );
+    });
+</script>
+</body>
+</html>
