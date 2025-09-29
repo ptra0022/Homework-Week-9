@@ -1,0 +1,39 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "width": 900,
+  "height": 450,
+  "projection": {"type": "equalEarth"},
+  "layer": [
+    {
+      "data": {"url": "ne_110m_admin_0_countries.json", "format": {"type": "topojson", "feature": "countries"}},
+      "transform": [
+        {
+          "lookup": "properties.ISO_A3",
+          "from": {
+            "data": {"url": "clean_water_latest.csv"},
+            "key": "iso3",
+            "fields": ["access_percentage", "latest_year", "country"]
+          }
+        }
+      ],
+      "mark": {"type": "geoshape"},
+      "encoding": {
+        "color": {
+          "field": "access_percentage",
+          "type": "quantitative",
+          "scale": {"scheme": "blues"},
+          "legend": {"title": "% with Safely Managed Water"}
+        },
+        "tooltip": [
+          {"field": "country", "type": "nominal"},
+          {"field": "access_percentage", "type": "quantitative", "format": ".1f"},
+          {"field": "latest_year", "type": "temporal"}
+        ]
+      }
+    },
+    {
+      "data": {"graticule": {"step": [30, 30]}},
+      "mark": {"type": "geoshape", "stroke": "#ccc"}
+    }
+  ]
+}
