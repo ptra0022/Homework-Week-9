@@ -3,78 +3,81 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Safely Managed Drinking Water 2024</title>
-  <meta name="description" content="Choropleth map showing the most recent share of population with safely managed drinking water services." />
+  <title>FIT3179 Week 10 — Interactive Visualisations</title>
+  <meta name="description" content="Week 10: two interactive Vega-Lite visualisations (map + interactive ranked bar chart with slider, tooltips, and annotations)." />
   <style>
+    :root { --maxw: 980px; }
+    * { box-sizing: border-box; }
     body {
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-    margin: 0;
-    background:#f8f9fb;
-    color:#111;
-    display: flex;              
-    flex-direction: column;     
-    align-items: center;        
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      background: #f6f8fb;
+      color: #111;
+      line-height: 1.45;
     }
-
-    header, footer, #vis {
-    width: 100%;
-    max-width: 980px;           
-    text-align: center;
+    header, main, footer { max-width: var(--maxw); margin: 0 auto; padding: 16px; }
+    header { padding-top: 24px; }
+    h1 { margin: 0 0 6px; font-size: 1.6rem; }
+    p.meta { margin:0 0 10px; color:#555; }
+    section.card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 14px 14px 4px;
+      box-shadow: 0 12px 28px rgba(0,0,0,.06);
+      margin: 14px 0;
+      overflow: hidden; /* prevents any visual from spilling out */
     }
-
-    h1 { margin: 0 0 6px; font-size: 1.4rem; }
-
-    p.sub { margin: 0 auto; max-width: 900px; color:#555; font-size: .95rem; }
-
-    #vis {
-    background: #fff;
-    border-radius: 16px;
-    padding: 12px;
-    box-shadow: 0 6px 18px rgba(0,0,0,.06);
-    margin: 18px 0 8px;         
-    }
-
-    footer { max-width: 980px; margin: 6px auto 40px; color:#666; font-size:.85rem; padding: 0 12px; text-align: center;}
-    
-    .note { color:#b00; }
-    
-    .sr { position:absolute; left:-9999px; }
+    h2 { font-size: 1.2rem; margin: 6px 0 2px; }
+    p.sub { margin: 2px 0 12px; color:#333; }
+    .vis { width: 100%; display:block; }
+    footer { color:#666; font-size:.9rem; padding-bottom: 36px;}
+    code { background:#eef2f7; border-radius: 6px; padding:2px 4px; }
   </style>
 
-  <!-- Vega libs from CDN -->
+  <!-- Vega libraries -->
   <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
 </head>
 <body>
   <header>
-    <h1>Safely Managed Drinking Water (Most Recent Year)</h1>
-    <p class="meta">
-    Name: Phat Gia Tran<br>
-    Monash student ID: 32933983<br>
-    Lab: Wednesday 6 PM<br>
-    Tutor name: Ashwini
-    </p>
-    <p class="sub">Each country is coloured by the latest available percentage of the population with <em>safely managed</em> drinking water services. Hover for details.</p>
+    <h1>FIT3179 Week 10 — Interactive Visualisations</h1>
+    <p class="meta">Student: Phat Gia Tran (32933983) · Lab: Wednesday 6 PM · Tutor: Ashwini</p>
+    <p class="sub">This page shows two Vega-Lite visualisations using the <em>safely managed drinking water</em> dataset: (1) a choropleth map and (2) an interactive ranked bar chart with a slider, tooltips and annotations.</p>
   </header>
 
-  <main id="vis" aria-labelledby="map-title">
-    <span id="map-title" class="sr">Choropleth map of safely managed water services</span>
+  <main>
+    <!-- Map -->
+    <section class="card">
+      <h2 id="map-title">Safely Managed Drinking Water — Choropleth (Most Recent Year)</h2>
+      <p class="sub">Hover for details. Countries without data appear in light grey.</p>
+      <div id="map" class="vis" aria-labelledby="map-title"></div>
+    </section>
+
+    <!-- Interactive ranked bar chart -->
+    <section class="card">
+      <h2 id="bars-title">Countries ranked by safely managed drinking water (%)</h2>
+      <p class="sub">
+        Drag the slider to show the top <em>N</em> countries. A vertical rule marks the global mean. Hover a bar to focus and see details.
+      </p>
+      <div id="bars" class="vis" aria-labelledby="bars-title"></div>
+    </section>
   </main>
 
   <footer>
-    <div><strong>Data:</strong> WHO/UNICEF JMP (latest available year per country). Geometry: Natural Earth 1:110m.</div>
-    <div><strong>Notes:</strong> Some countries that are blanked out meaning there is no data available for that country.</div>
+    <div><strong>Data</strong>: WHO/UNICEF JMP (latest available year per country). Geometry: Natural Earth 1:110m.</div>
+    <div><strong>Files expected in <code>data/</code></strong>: <code>ne_110m_admin_0_countries.json</code>, <code>clean_water_latest.csv</code>.</div>
   </footer>
 
-  <script>
-  // TopoJSON object name inside your file's "objects" section
-  const FEATURE_NAME = "ne_110m_admin_0_countries"; 
+<script>
+/* =====================
+   Responsive Choropleth
+   ===================== */
+const FEATURE_NAME = "ne_110m_admin_0_countries";
 
-  // Build the Vega-Lite spec
-  const spec = {
+const mapSpec = {
   "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-  "width": 980,
+  "width": "container",
   "height": 520,
   "autosize": {"type": "fit", "contains": "padding"},
   "config": {
@@ -82,45 +85,48 @@
     "axis": {"labelFontSize": 11, "titleFontSize": 12},
     "legend": {"labelFontSize": 11, "titleFontSize": 12}
   },
-  "title": {
-    "text": "Safely Managed Drinking Water",
-    "subtitle": "% of population with safely managed drinking water (latest available year)",
-    "anchor": "start",
-    "fontSize": 20,
-    "subtitleFontSize": 13
-  },
   "projection": {"type": "equalEarth"},
   "layer": [
-    /* Ocean */
     { "data": {"sphere": true}, "mark": {"type": "geoshape", "fill": "#eef4fa"} },
-
-    /* Graticule */
-    { "data": {"graticule": {"step": [30, 30]}},
-      "mark": {"type": "geoshape", "stroke": "#c8d1db", "strokeWidth": 0.7}
-    },
-
-    /* ---- No-data layer (light grey) ---- */
+    { "data": {"graticule": {"step": [30, 30]}}, "mark": {"type": "geoshape", "stroke": "#c8d1db", "strokeWidth": 0.7} },
     {
-      "data": {"url": "data/ne_110m_admin_0_countries.json",
-               "format": {"type": "topojson", "feature": FEATURE_NAME}},
+      "data": {"url": "data/ne_110m_admin_0_countries.json", "format": {"type": "topojson", "feature": FEATURE_NAME}},
       "transform": [
-        {
-          "calculate":
-            "datum.properties.ISO_A3 ? datum.properties.ISO_A3 : " +
-            "(datum.properties.ISO_A3_EH ? datum.properties.ISO_A3_EH : datum.properties.ADM0_A3)",
-          "as": "ISO3_guess"
-        },
+        { "calculate": "datum.properties.ISO_A3 || datum.properties.ISO_A3_EH || datum.properties.ADM0_A3", "as": "ISO3_guess" },
         { "calculate": "datum.ISO3_guess == 'KOS' ? 'XKX' : datum.ISO3_guess", "as": "ISO3_for_join" },
         {
           "lookup": "ISO3_for_join",
-          "from": {
-            "data": {"url": "data/clean_water_latest.csv"},
-            "key": "iso3",
-            "fields": ["access_percentage", "latest_year", "country"]
-          }
+          "from": {"data": {"url": "data/clean_water_latest.csv"}, "key": "iso3", "fields": ["access_percentage","latest_year","country"]}
         },
-        /* compute display fields and filter to rows with NO data */
-        { "calculate": "datum.country ? datum.country : (datum.properties.NAME_EN ? datum.properties.NAME_EN : datum.properties.NAME)", "as": "country_display" },
+        { "calculate": "datum.country || datum.properties.NAME_EN || datum.properties.NAME", "as": "country_display" },
+        { "calculate": "isValid(datum.latest_year) ? toString(datum.latest_year) : '—'", "as": "year_display" },
+        { "calculate": "isValid(datum.access_percentage) ? format(datum.access_percentage, '.1f') + '%' : 'No data'", "as": "access_display" },
+        { "filter": "isValid(datum.access_percentage)" }
+      ],
+      "mark": {"type": "geoshape", "stroke": "#ffffff", "strokeWidth": 0.5},
+      "encoding": {
+        "color": {
+          "field": "access_percentage", "type": "quantitative", "title": "% with Safely Managed Water",
+          "scale": {"scheme": "blues", "domain": [0, 100], "clamp": true},
+          "legend": {"format": ".0f", "orient": "right"}
+        },
+        "tooltip": [
+          {"field": "country_display", "type": "nominal", "title": "Country"},
+          {"field": "access_display", "type": "nominal", "title": "% Access"},
+          {"field": "year_display", "type": "nominal", "title": "Latest Year"}
+        ]
+      }
+    },
+    {
+      "data": {"url": "data/ne_110m_admin_0_countries.json", "format": {"type": "topojson", "feature": FEATURE_NAME}},
+      "transform": [
+        { "calculate": "datum.properties.ISO_A3 || datum.properties.ISO_A3_EH || datum.properties.ADM0_A3", "as": "ISO3_guess" },
+        { "calculate": "datum.ISO3_guess == 'KOS' ? 'XKX' : datum.ISO3_guess", "as": "ISO3_for_join" },
+        {
+          "lookup": "ISO3_for_join",
+          "from": {"data": {"url": "data/clean_water_latest.csv"}, "key": "iso3", "fields": ["access_percentage","latest_year","country"]}
+        },
+        { "calculate": "datum.country || datum.properties.NAME_EN || datum.properties.NAME", "as": "country_display" },
         { "calculate": "isValid(datum.latest_year) ? toString(datum.latest_year) : '—'", "as": "year_display" },
         { "calculate": "isValid(datum.access_percentage) ? format(datum.access_percentage, '.1f') + '%' : 'No data'", "as": "access_display" },
         { "filter": "!isValid(datum.access_percentage)" }
@@ -133,72 +139,91 @@
           {"field": "year_display", "type": "nominal", "title": "Latest Year"}
         ]
       }
-    },
-
-    /* ---- Data layer (coloured by value) ---- */
-    {
-      "data": {"url": "data/ne_110m_admin_0_countries.json",
-               "format": {"type": "topojson", "feature": FEATURE_NAME}},
-      "transform": [
-        {
-          "calculate":
-            "datum.properties.ISO_A3 ? datum.properties.ISO_A3 : " +
-            "(datum.properties.ISO_A3_EH ? datum.properties.ISO_A3_EH : datum.properties.ADM0_A3)",
-          "as": "ISO3_guess"
-        },
-        { "calculate": "datum.ISO3_guess == 'KOS' ? 'XKX' : datum.ISO3_guess", "as": "ISO3_for_join" },
-        {
-          "lookup": "ISO3_for_join",
-          "from": {
-            "data": {"url": "data/clean_water_latest.csv"},
-            "key": "iso3",
-            "fields": ["access_percentage", "latest_year", "country"]
-          }
-        },
-        /* compute display fields */
-        { "calculate": "datum.country ? datum.country : (datum.properties.NAME_EN ? datum.properties.NAME_EN : datum.properties.NAME)", "as": "country_display" },
-        { "calculate": "isValid(datum.latest_year) ? toString(datum.latest_year) : '—'", "as": "year_display" },
-        { "calculate": "isValid(datum.access_percentage) ? format(datum.access_percentage, '.1f') + '%' : 'No data'", "as": "access_display" },
-        /* keep only rows WITH data for the colour layer */
-        { "filter": "isValid(datum.access_percentage)" }
-      ],
-      "mark": {"type": "geoshape", "stroke": "#ffffff", "strokeWidth": 0.5},
-      "encoding": {
-        "color": {
-          "field": "access_percentage",
-          "type": "quantitative",
-          "title": "% with Safely Managed Water",
-          "scale": {"scheme": "blues", "domain": [0, 100], "clamp": true},
-          "legend": {"format": ".0f", "orient": "right"}
-        },
-        "tooltip": [
-          {"field": "country_display", "type": "nominal", "title": "Country"},
-          {"field": "access_display", "type": "nominal", "title": "% Access"},
-          {"field": "year_display", "type": "nominal", "title": "Latest Year"}
-        ]
-      }
-    },
-
-    /* hairline borders on top */
-    {
-      "data": {"url": "data/ne_110m_admin_0_countries.json",
-               "format": {"type": "topojson", "feature": FEATURE_NAME}},
-      "mark": {"type": "geoshape", "fill": null, "stroke": "#b9c3cf", "strokeWidth": 0.6}
     }
   ]
 };
 
+/* ================================
+   Ranked Bar Chart (robust version)
+   ================================ */
+const barsSpec = {
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "width": "container",
+  "height": {"step": 24},
+  "autosize": {"type": "fit", "contains": "padding"},
+  "config": {
+    "view": {"stroke": null},
+    "axis": {"labelFontSize": 11, "titleFontSize": 12, "grid": true, "gridColor": "#eef1f6", "domain": false}
+  },
 
-  // Render it
-  vegaEmbed('#vis', spec, {actions: false})
-    .then(() => console.log('Map rendered'))
-    .catch(err => {
-      console.error(err);
-      document.getElementById('vis').insertAdjacentHTML(
-        'beforeend',
-        '<p class="note">Could not render the map. Open the browser Console for details (feature name mismatch or 404 paths are common).</p>'
-      );
-    });
+  "params": [
+    {
+      "name": "TopN",
+      "value": 20,
+      "bind": {"input": "range", "min": 5, "max": 50, "step": 1, "name": "Show top N countries: "}
+    }
+  ],
+
+  "data": {"url": "data/clean_water_latest.csv"},
+
+  "transform": [
+    {"filter": "isValid(datum.access_percentage)"},
+    {"window": [{"op": "rank", "as": "rank"}], "sort": [{"field": "access_percentage", "order": "descending"}]},
+    {"filter": "datum.rank <= TopN"}
+  ],
+
+  "layer": [
+    /* Bars */
+    {
+      "mark": {"type": "bar", "cornerRadiusEnd": 3},
+      "encoding": {
+        "y": {"field": "country", "type": "nominal", "sort": {"field": "rank", "order": "ascending"}, "title": null},
+        "x": {"field": "access_percentage", "type": "quantitative", "title": "% with safely managed water", "scale": {"domain": [0, 100]}},
+        "color": {"value": "#3b82f6"},
+        "tooltip": [
+          {"field": "country", "type": "nominal", "title": "Country"},
+          {"field": "access_percentage", "type": "quantitative", "title": "% Access", "format": ".1f"},
+          {"field": "latest_year", "type": "quantitative", "title": "Latest year", "format": ".0f"}
+        ]
+      }
+    },
+
+    /* End-of-bar value labels */
+    {
+      "mark": {"type": "text", "baseline": "middle", "align": "right", "dx": -4, "fill": "white"},
+      "encoding": {
+        "y": {"field": "country", "type": "nominal", "sort": {"field": "rank", "order": "ascending"}},
+        "x": {"field": "access_percentage", "type": "quantitative"},
+        "text": {"field": "access_percentage", "type": "quantitative", "format": ".1f"}
+      }
+    },
+
+    /* Global mean rule — computed in its own tiny dataflow to avoid compile issues */
+    {
+      "data": {"url": "data/clean_water_latest.csv"},
+      "transform": [
+        {"filter": "isValid(datum.access_percentage)"},
+        {"aggregate": [{"op": "mean", "field": "access_percentage", "as": "global_mean"}]}
+      ],
+      "mark": {"type": "rule", "strokeDash": [6,4], "strokeWidth": 2, "color": "#6b7280"},
+      "encoding": { "x": {"field": "global_mean", "type": "quantitative"} }
+    },
+
+    /* Global mean label */
+    {
+      "data": {"url": "data/clean_water_latest.csv"},
+      "transform": [
+        {"filter": "isValid(datum.access_percentage)"},
+        {"aggregate": [{"op": "mean", "field": "access_percentage", "as": "global_mean"}]}
+      ],
+      "mark": {"type": "text", "align": "left", "dy": -8, "dx": 6, "fontWeight": "bold", "color": "#6b7280"},
+      "encoding": { "x": {"field": "global_mean", "type": "quantitative"}, "y": {"value": 0}, "text": {"value": "Global mean"} }
+    }
+  ]
+};
+
+vegaEmbed("#map", mapSpec, {renderer: "canvas", actions: false});
+vegaEmbed("#bars", barsSpec, {renderer: "canvas", actions: false});
 </script>
 </body>
 </html>
